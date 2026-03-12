@@ -1,0 +1,11 @@
+# .gitignore (in project root)
+venv/
+__pycache__/
+*.pyc
+*.pt
+*.engine
+*.onnx
+db.sqlite3
+.env
+*.jpg
+*.png
