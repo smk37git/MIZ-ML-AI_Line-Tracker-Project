@@ -10,7 +10,6 @@ from django.views.decorators.http import require_POST, require_GET
 from django.utils.dateparse import parse_datetime
 from .models import QueueReading
  
- 
 def dashboard(request):
     return render(request, 'queue_monitor/dashboard.html')
  
