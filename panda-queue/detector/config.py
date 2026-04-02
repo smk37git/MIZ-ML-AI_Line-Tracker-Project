@@ -40,7 +40,7 @@ MIN_FRAMES_TO_COUNT = 8              # Must be seen this many frames before coun
 SERVICE_RATE = 50.0                  # Seconds per person (calibrate this!)
  
 # ============ BACKEND ============
-BACKEND_URL = 'http://127.0.0.1:8000/api/queue-update/'
+BACKEND_URL = 'http://127.0.0.1:8000/api/update/'
 SEND_INTERVAL = 10                   # Seconds between sends
  
 # ============ DISPLAY ============
