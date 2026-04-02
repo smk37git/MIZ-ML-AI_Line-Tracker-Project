@@ -8,4 +8,4 @@ __pycache__/
 db.sqlite3
 .env
 *.jpg
-*.png
+*.png.DS_Store
