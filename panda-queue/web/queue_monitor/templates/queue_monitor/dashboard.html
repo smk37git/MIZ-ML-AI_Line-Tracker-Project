@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panda Express Wait Time | MU Student Center</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+               background: #1a1a2e; color: #fff; min-height: 100vh; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .header { text-align: center; padding: 20px 0; }
+        .header h1 { font-size: 1.5rem; color: #F1B82D; }
+        .header p { color: #888; font-size: 0.9rem; margin-top: 4px; }
+        .card { background: #16213e; border-radius: 16px; padding: 30px;
+                text-align: center; margin: 16px 0; }
+        .wait-time { font-size: 4rem; font-weight: 700; color: #F1B82D; }
+        .wait-label { font-size: 1rem; color: #aaa; margin-top: 4px; }
+        .people { font-size: 1.2rem; margin-top: 14px; }
+        .dot { display: inline-block; width: 12px; height: 12px;
+               border-radius: 50%; margin-right: 8px; vertical-align: middle; }
+        .green { background: #00c853; } .yellow { background: #ffd600; }
+        .red { background: #ff1744; } .gray { background: #666; }
+        .chart-card { background: #16213e; border-radius: 16px; padding: 20px;
+                      margin: 16px 0; }
+        .footer { text-align: center; color: #555; font-size: 0.8rem; margin-top: 16px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍜 Panda Express — MU Student Center</h1>
+            <p>Live Queue Monitor</p>
+        </div>
+        <div class="card">
+            <div class="wait-time" id="wait">--</div>
+            <div class="wait-label">estimated wait</div>
+            <div class="people">
+                <span class="dot" id="dot"></span>
+                <span id="count">Loading...</span>
+            </div>
+        </div>
+        <div class="chart-card">
+            <canvas id="chart" height="200"></canvas>
+        </div>
+        <div class="footer" id="footer"></div>
+    </div>
+    <script>
+        let chart;
+        async function updateCurrent() {
+            try {
+                const r = await fetch('/api/current/');
+                const d = await r.json();
+                document.getElementById('wait').textContent =
+                    d.wait_minutes > 0 ? d.wait_minutes + ' min' : 'No wait';
+                document.getElementById('count').textContent =
+                    d.people + ' people in line';
+                const dot = document.getElementById('dot');
+                dot.className = 'dot ' + (d.stale ? 'gray' :
+                    d.people <= 3 ? 'green' : d.people <= 7 ? 'yellow' : 'red');
+                if (d.timestamp) {
+                    document.getElementById('footer').textContent =
+                        'Updated: ' + new Date(d.timestamp).toLocaleTimeString();
+                }
+            } catch(e) { console.error(e); }
+        }
+        async function updateChart() {
+            try {
+                const r = await fetch('/api/history/?hours=4');
+                const d = await r.json();
+                const labels = d.data.map(x =>
+                    new Date(x.timestamp).toLocaleTimeString([],
+                    {hour:'2-digit',minute:'2-digit'}));
+                const waits = d.data.map(x =>
+                    (x.estimated_wait_seconds / 60).toFixed(1));
+                if (chart) chart.destroy();
+                chart = new Chart(document.getElementById('chart'), {
+                    type: 'line',
+                    data: { labels,
+                        datasets: [{ label: 'Wait (min)', data: waits,
+                            borderColor: '#F1B82D',
+                            backgroundColor: 'rgba(241,184,45,0.1)',
+                            fill: true, tension: 0.3 }] },
+                    options: { responsive: true,
+                        scales: {
+                            y: { beginAtZero: true,
+                                 ticks: { color: '#888' },
+                                 grid: { color: '#333' } },
+                            x: { ticks: { color: '#888', maxTicksLimit: 8 },
+                                 grid: { color: '#333' } } },
+                        plugins: { legend: { display: false } } }
+                });
+            } catch(e) { console.error(e); }
+        }
+        updateCurrent(); updateChart();
+        setInterval(updateCurrent, 10000);
+        setInterval(updateChart, 60000);
+    </script>
+</body>
+</html>

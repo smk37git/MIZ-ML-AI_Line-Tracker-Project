@@ -1,7 +1,10 @@
-from django.contrib import admin
-from django.urls import path, include
- 
+from django.urls import path
+from . import views
+
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('', include('queue_monitor.urls')),
+    path('', views.dashboard, name='dashboard'),
+    path('api/update/', views.queue_update, name='queue_update'),
+    path('api/current/', views.current_status, name='current_status'),
+    path('api/history/', views.history, name='history'),
+    path('api/health/', views.health, name='health'),
 ]
