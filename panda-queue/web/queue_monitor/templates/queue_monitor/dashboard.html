@@ -24,6 +24,11 @@
         .red { background: #ff1744; } .gray { background: #666; }
         .chart-card { background: #16213e; border-radius: 16px; padding: 20px;
                       margin: 16px 0; }
+        .feed-card { background: #16213e; border-radius: 16px; padding: 20px;
+                     margin: 16px 0; text-align: center; }
+        .feed-card h2 { font-size: 1rem; color: #aaa; margin-bottom: 12px; }
+        .feed-card img { width: 100%; border-radius: 10px; background: #000; }
+        .feed-card .feed-msg { color: #666; font-size: 0.85rem; margin-top: 8px; }
         .footer { text-align: center; color: #555; font-size: 0.8rem; margin-top: 16px; }
     </style>
 </head>
@@ -40,6 +45,11 @@
                 <span class="dot" id="dot"></span>
                 <span id="count">Loading...</span>
             </div>
+        </div>
+        <div class="feed-card">
+            <h2>Live Camera Feed</h2>
+            <img id="cam" alt="Live feed — waiting for detector...">
+            <p class="feed-msg" id="feed-msg"></p>
         </div>
         <div class="chart-card">
             <canvas id="chart" height="200"></canvas>
@@ -93,6 +103,14 @@
                 });
             } catch(e) { console.error(e); }
         }
+        // Live annotated camera feed from detector's MJPEG stream
+        const STREAM_URL = 'http://' + window.location.hostname + ':9090/';
+        const cam = document.getElementById('cam');
+        const feedMsg = document.getElementById('feed-msg');
+        cam.src = STREAM_URL;
+        cam.onerror = function() {
+            feedMsg.textContent = 'Feed unavailable — is the detector running?';
+        };
         updateCurrent(); updateChart();
         setInterval(updateCurrent, 10000);
         setInterval(updateChart, 60000);

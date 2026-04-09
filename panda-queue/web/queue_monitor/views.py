@@ -2,7 +2,7 @@ from django.shortcuts import render
 
 import json
 from datetime import timedelta
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -53,7 +53,10 @@ def history(request):
         .order_by('timestamp')
         .values('timestamp', 'people_count', 'estimated_wait_seconds')
     )
-    return JsonResponse({'data': readings}, default=str)
+    return HttpResponse(
+        json.dumps({'data': readings}, default=str),
+        content_type='application/json',
+    )
  
  
 @require_GET

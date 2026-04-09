@@ -43,6 +43,10 @@ SERVICE_RATE = 50.0                  # Seconds per person (calibrate this!)
 BACKEND_URL = 'http://127.0.0.1:8000/api/update/'
 SEND_INTERVAL = 10                   # Seconds between sends
  
+# ============ MJPEG STREAM ============
+STREAM_PORT = 9090                   # Port for the MJPEG stream server
+STREAM_FPS = 15                      # Max frames per second to stream
+
 # ============ DISPLAY ============
 SHOW_PREVIEW = True                  # OpenCV window. Set False on Jetson.
 PREVIEW_SCALE = 0.75
