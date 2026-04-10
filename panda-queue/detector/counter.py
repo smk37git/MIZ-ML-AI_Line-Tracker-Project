@@ -10,12 +10,10 @@ How it works:
 6. Wait time = count of stationary people x calibrated service rate.
 """
 import time
-import cv2
-import numpy as np
 from config import (
-    QUEUE_ROI, SPEED_THRESHOLD, SPEED_HISTORY_FRAMES,
-    MIN_FRAMES_TO_COUNT, SERVICE_RATE
+    SPEED_THRESHOLD, SPEED_HISTORY_FRAMES, MIN_FRAMES_TO_COUNT, SERVICE_RATE
 )
+from roi import point_inside_queue_roi
  
  
 class QueueCounter:
@@ -51,7 +49,7 @@ class QueueCounter:
             cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
  
             # Check if person is inside the queue ROI
-            if cv2.pointPolygonTest(QUEUE_ROI, (cx, cy), False) < 0:
+            if not point_inside_queue_roi((cx, cy)):
                 continue  # Outside ROI, skip entirely
  
             current_ids.add(track_id)
@@ -100,4 +98,3 @@ class QueueCounter:
             'service_rate': SERVICE_RATE,
             'boxes_in_roi': boxes_in_roi,  # For visualization
         }
-

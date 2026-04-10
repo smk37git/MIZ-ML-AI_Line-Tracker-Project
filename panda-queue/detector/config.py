@@ -5,7 +5,7 @@ Change these values when moving from laptop to Jetson.
 import numpy as np
  
 # ============ CAMERA ============
-CAMERA_INDEX = 0                     # 0 = default webcam. Try 1 if external.
+CAMERA_INDEX = 1                     # 0 = default webcam. Try 1 if external.
 FRAME_WIDTH = 1280
 FRAME_HEIGHT = 720
  
@@ -15,15 +15,21 @@ CONFIDENCE_THRESHOLD = 0.5
 PERSON_CLASS_ID = 0                  # COCO class 0 = person
  
 # ============ QUEUE ROI ============
-# Pixel coordinates for the queue area polygon.
-# Run roi_tool.py to determine these for your camera position.
+# Adjustable straight-line detection box.
+# Move these 4 corner points to make a square, rectangle, trapezoid, or skewed box.
+# Run roi_tool.py to drag the corners visually, then paste the printed points here.
 # Draw TIGHT around just the standing-in-line area.
 # Do NOT include the pickup counter or walkways.
 QUEUE_ROI = np.array([
     [200, 150],
+    [550, 130],
     [900, 150],
+    [940, 350],
     [900, 600],
+    [550, 630],
     [200, 600],
+    [160, 350],
+    [69, 67],
 ], dtype=np.int32)
  
 # ============ SPEED FILTER ============
@@ -50,4 +56,3 @@ STREAM_FPS = 15                      # Max frames per second to stream
 # ============ DISPLAY ============
 SHOW_PREVIEW = True                  # OpenCV window. Set False on Jetson.
 PREVIEW_SCALE = 0.75
-

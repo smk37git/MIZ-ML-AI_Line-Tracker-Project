@@ -10,15 +10,21 @@ from ultralytics import YOLO
 from config import (
     CAMERA_INDEX, FRAME_WIDTH, FRAME_HEIGHT,
     MODEL_PATH, CONFIDENCE_THRESHOLD, PERSON_CLASS_ID,
-    QUEUE_ROI, SHOW_PREVIEW, PREVIEW_SCALE, SERVICE_RATE,
+    SHOW_PREVIEW, PREVIEW_SCALE, SERVICE_RATE,
     STREAM_PORT, STREAM_FPS
 )
 from counter import QueueCounter
 from sender import DataSender
 from frame_buffer import FrameBuffer
+from roi import (
+    draw_queue_roi, get_queue_roi_points, reset_queue_roi_points,
+    set_queue_roi_point
+)
 
 # Global frame buffer shared between detector loop and MJPEG server
 frame_buffer = FrameBuffer()
+dragged_roi_point = None
+preview_scale_for_mouse = 1.0
 
 
 class MJPEGHandler(BaseHTTPRequestHandler):
@@ -62,7 +68,44 @@ def load_model_async(result):
     result['ready'] = True
 
 
+def find_nearest_roi_point(x, y, max_distance=18):
+    """Find a draggable ROI corner near the full-size frame coordinate."""
+    for i, (px, py) in enumerate(get_queue_roi_points()):
+        distance = ((px - x) ** 2 + (py - y) ** 2) ** 0.5
+        if distance <= max_distance:
+            return i
+    return None
+
+
+def preview_mouse_handler(event, x, y, flags, param):
+    """Drag ROI corners in the OpenCV preview window."""
+    global dragged_roi_point
+
+    full_x = int(x / preview_scale_for_mouse)
+    full_y = int(y / preview_scale_for_mouse)
+
+    if event == cv2.EVENT_LBUTTONDOWN:
+        dragged_roi_point = find_nearest_roi_point(full_x, full_y)
+    elif event == cv2.EVENT_MOUSEMOVE and dragged_roi_point is not None:
+        set_queue_roi_point(dragged_roi_point, full_x, full_y)
+    elif event == cv2.EVENT_LBUTTONUP:
+        dragged_roi_point = None
+
+
+def print_current_roi():
+    """Print live ROI points in config.py format."""
+    print()
+    print('Current QUEUE_ROI:')
+    print('QUEUE_ROI = np.array([')
+    for x, y in get_queue_roi_points():
+        print(f'    [{int(x)}, {int(y)}],')
+    print('], dtype=np.int32)')
+    print()
+
+
 def main():
+    global preview_scale_for_mouse
+
     # Start MJPEG stream server first
     stream_thread = threading.Thread(target=start_stream_server, daemon=True)
     stream_thread.start()
@@ -90,9 +133,13 @@ def main():
     sender = DataSender()
 
     print(f'Service rate: {SERVICE_RATE} sec/person')
-    print(f'ROI: {len(QUEUE_ROI)} points')
+    print(f'ROI box: {len(get_queue_roi_points())} adjustable corner points')
     print(f'Preview: {"ON" if SHOW_PREVIEW else "OFF"}')
     print(f'MJPEG stream: http://localhost:{STREAM_PORT}/')
+    if SHOW_PREVIEW:
+        print('Preview controls: drag green corners, p=print ROI, r=reset ROI, q=quit')
+        cv2.namedWindow('Panda Queue Detector')
+        cv2.setMouseCallback('Panda Queue Detector', preview_mouse_handler)
     print('Streaming camera while model loads...')
     print()
 
@@ -133,7 +180,7 @@ def main():
 
                 # Build annotated frame
                 display = frame.copy()
-                cv2.polylines(display, [QUEUE_ROI], True, (0, 255, 0), 2)
+                draw_queue_roi(display)
                 for (x1, y1, x2, y2, tid, in_line) in data['boxes_in_roi']:
                     color = (0, 255, 0) if in_line else (0, 0, 255)
                     label = f'ID:{tid}' + (' [LINE]' if in_line else ' [MOVING]')
@@ -148,7 +195,7 @@ def main():
             else:
                 # --- Loading mode: stream raw camera with overlay ---
                 display = frame.copy()
-                cv2.polylines(display, [QUEUE_ROI], True, (0, 255, 0), 2)
+                draw_queue_roi(display)
                 cv2.putText(display, 'Loading model...',
                     (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 165, 255), 2)
 
@@ -158,13 +205,20 @@ def main():
             # Optional OpenCV preview window
             if SHOW_PREVIEW:
                 preview = display
+                preview_scale_for_mouse = PREVIEW_SCALE
                 if PREVIEW_SCALE != 1.0:
                     h, w = display.shape[:2]
                     preview = cv2.resize(display,
                         (int(w * PREVIEW_SCALE), int(h * PREVIEW_SCALE)))
                 cv2.imshow('Panda Queue Detector', preview)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
+                key = cv2.waitKey(1) & 0xFF
+                if key == ord('q'):
                     break
+                if key == ord('r'):
+                    reset_queue_roi_points()
+                    print('ROI reset to config.py values.')
+                if key == ord('p'):
+                    print_current_roi()
 
     except KeyboardInterrupt:
         print('\nStopping...')
