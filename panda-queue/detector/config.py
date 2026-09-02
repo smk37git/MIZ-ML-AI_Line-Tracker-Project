@@ -21,15 +21,10 @@ PERSON_CLASS_ID = 0                  # COCO class 0 = person
 # Draw TIGHT around just the standing-in-line area.
 # Do NOT include the pickup counter or walkways.
 QUEUE_ROI = np.array([
-    [200, 150],
-    [550, 130],
-    [900, 150],
-    [940, 350],
-    [900, 600],
-    [550, 630],
-    [200, 600],
-    [160, 350],
-    [69, 67],
+    [200, 75], # 1
+    [1000, 75], # 2
+    [1000, 650], # 3
+    [200, 650]  # 4
 ], dtype=np.int32)
  
 # ============ SPEED FILTER ============
