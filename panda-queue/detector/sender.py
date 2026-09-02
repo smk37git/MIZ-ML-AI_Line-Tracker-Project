@@ -4,7 +4,7 @@ If Django is unreachable, payloads are queued and sent when it comes back.
 """
 import time
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 from config import BACKEND_URL, SEND_INTERVAL
  
  
@@ -21,7 +21,7 @@ class DataSender:
             return False
  
         payload = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'people_count': data['people_count'],
             'estimated_wait_seconds': data['estimated_wait_sec'],
             'service_rate': data['service_rate'],
