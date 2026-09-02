@@ -5,7 +5,7 @@ Change these values when moving from laptop to Jetson.
 import numpy as np
  
 # ============ CAMERA ============
-CAMERA_INDEX = 1                     # 0 = default webcam. Try 1 if external.
+CAMERA_INDEX = 0                     # 0 = default webcam. Try 1 if external.
 FRAME_WIDTH = 1280
 FRAME_HEIGHT = 720
  
