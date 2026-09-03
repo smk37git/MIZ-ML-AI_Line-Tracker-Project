@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Live wait-time monitor for Panda Express at MU Student Center">
+    <meta name="theme-color" content="#1a1a2e">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐼</text></svg>">
     <title>Panda Express Wait Time | MU Student Center</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -16,19 +19,24 @@
         .card { background: #16213e; border-radius: 16px; padding: 30px;
                 text-align: center; margin: 16px 0; }
         .wait-time { font-size: 4rem; font-weight: 700; color: #F1B82D; }
+        .wait-time.stale { color: #666; font-size: 2rem; }
+        .wait-time.error { color: #ff5252; font-size: 1.5rem; }
         .wait-label { font-size: 1rem; color: #aaa; margin-top: 4px; }
         .people { font-size: 1.2rem; margin-top: 14px; }
         .dot { display: inline-block; width: 12px; height: 12px;
                border-radius: 50%; margin-right: 8px; vertical-align: middle; }
         .green { background: #00c853; } .yellow { background: #ffd600; }
         .red { background: #ff1744; } .gray { background: #666; }
+        .status-label { font-size: 0.85rem; color: #aaa; margin-left: 4px; }
         .chart-card { background: #16213e; border-radius: 16px; padding: 20px;
-                      margin: 16px 0; }
+                      margin: 16px 0; overflow-x: auto; }
         .feed-card { background: #16213e; border-radius: 16px; padding: 20px;
                      margin: 16px 0; text-align: center; }
         .feed-card h2 { font-size: 1rem; color: #aaa; margin-bottom: 12px; }
-        .feed-card img { width: 100%; border-radius: 10px; background: #000; }
+        .feed-card img { width: 100%; max-width: 100%; border-radius: 10px; background: #000; }
         .feed-card .feed-msg { color: #666; font-size: 0.85rem; margin-top: 8px; }
+        .feed-offline { color: #888; font-size: 0.95rem; padding: 40px 20px;
+                        background: #0d1528; border-radius: 10px; }
         .footer { text-align: center; color: #555; font-size: 0.8rem; margin-top: 16px; }
     </style>
 </head>
@@ -39,16 +47,20 @@
             <p>Live Queue Monitor</p>
         </div>
         <div class="card">
-            <div class="wait-time" id="wait">--</div>
+            <div class="wait-time" id="wait">Loading...</div>
             <div class="wait-label">estimated wait</div>
             <div class="people">
-                <span class="dot" id="dot"></span>
-                <span id="count">Loading...</span>
+                <span class="dot gray" id="dot" role="status" aria-label="Status: loading"></span>
+                <span id="count">Connecting...</span>
+                <span class="status-label" id="status-label"></span>
             </div>
         </div>
         <div class="feed-card">
             <h2>Live Camera Feed</h2>
-            <img id="cam" alt="Live feed — waiting for detector...">
+            <img id="cam" alt="Live camera feed of Panda Express queue">
+            <div class="feed-offline" id="feed-offline" style="display:none;">
+                Camera offline — detector is not running
+            </div>
             <p class="feed-msg" id="feed-msg"></p>
         </div>
         <div class="chart-card">
@@ -58,23 +70,61 @@
     </div>
     <script>
         let chart;
+        let lastUpdateTime = null;
+
+        function getStatusInfo(people, stale) {
+            if (stale) return { cls: 'gray', label: 'Stale' };
+            if (people <= 3) return { cls: 'green', label: 'Low' };
+            if (people <= 7) return { cls: 'yellow', label: 'Moderate' };
+            return { cls: 'red', label: 'Busy' };
+        }
+
+        function updateFooter() {
+            if (!lastUpdateTime) return;
+            const ago = Math.round((Date.now() - lastUpdateTime) / 1000);
+            const label = ago < 5 ? 'Just now' : ago + 's ago';
+            document.getElementById('footer').textContent = 'Updated ' + label;
+        }
+
         async function updateCurrent() {
+            const waitEl = document.getElementById('wait');
+            const countEl = document.getElementById('count');
+            const dot = document.getElementById('dot');
+            const statusLabel = document.getElementById('status-label');
             try {
                 const r = await fetch('/api/current/');
                 const d = await r.json();
-                document.getElementById('wait').textContent =
-                    d.wait_minutes > 0 ? d.wait_minutes + ' min' : 'No wait';
-                document.getElementById('count').textContent =
-                    d.people + ' people in line';
-                const dot = document.getElementById('dot');
-                dot.className = 'dot ' + (d.stale ? 'gray' :
-                    d.people <= 3 ? 'green' : d.people <= 7 ? 'yellow' : 'red');
-                if (d.timestamp) {
-                    document.getElementById('footer').textContent =
-                        'Updated: ' + new Date(d.timestamp).toLocaleTimeString();
+
+                if (d.stale) {
+                    waitEl.textContent = 'No recent data';
+                    waitEl.className = 'wait-time stale';
+                    countEl.textContent = 'Waiting for detector';
+                } else {
+                    waitEl.textContent = d.wait_minutes > 0 ? d.wait_minutes + ' min' : 'No wait';
+                    waitEl.className = 'wait-time';
+                    countEl.textContent = d.people + ' people in line';
                 }
-            } catch(e) { console.error(e); }
+
+                const status = getStatusInfo(d.people, d.stale);
+                dot.className = 'dot ' + status.cls;
+                dot.setAttribute('aria-label', 'Status: ' + status.label);
+                statusLabel.textContent = status.label;
+
+                if (d.timestamp) {
+                    lastUpdateTime = Date.now();
+                    updateFooter();
+                }
+            } catch(e) {
+                console.error(e);
+                waitEl.textContent = 'Unable to connect';
+                waitEl.className = 'wait-time error';
+                countEl.textContent = 'Check your connection';
+                dot.className = 'dot gray';
+                dot.setAttribute('aria-label', 'Status: disconnected');
+                statusLabel.textContent = 'Offline';
+            }
         }
+
         async function updateChart() {
             try {
                 const r = await fetch('/api/history/?hours=4');
@@ -103,17 +153,25 @@
                 });
             } catch(e) { console.error(e); }
         }
+
         // Live annotated camera feed from detector's MJPEG stream
         const STREAM_URL = 'http://' + window.location.hostname + ':9090/';
         const cam = document.getElementById('cam');
-        const feedMsg = document.getElementById('feed-msg');
+        const feedOffline = document.getElementById('feed-offline');
         cam.src = STREAM_URL;
         cam.onerror = function() {
-            feedMsg.textContent = 'Feed unavailable — is the detector running?';
+            cam.style.display = 'none';
+            feedOffline.style.display = 'block';
         };
+        cam.onload = function() {
+            cam.style.display = 'block';
+            feedOffline.style.display = 'none';
+        };
+
         updateCurrent(); updateChart();
         setInterval(updateCurrent, 10000);
         setInterval(updateChart, 60000);
+        setInterval(updateFooter, 1000);
     </script>
 </body>
 </html>

@@ -53,6 +53,11 @@ def history(request):
         .order_by('timestamp')
         .values('timestamp', 'people_count', 'estimated_wait_seconds')
     )
+    # Downsample to ~100 points max so the chart stays clean
+    max_points = 100
+    if len(readings) > max_points:
+        step = len(readings) / max_points
+        readings = [readings[int(i * step)] for i in range(max_points)]
     return HttpResponse(
         json.dumps({'data': readings}, default=str),
         content_type='application/json',
